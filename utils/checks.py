@@ -1,9 +1,8 @@
 from discord.ext import commands
-from utils.settings_manager import SettingsManager
-
+from utils import settings_manager
 def is_staff():
     async def predicate(ctx):
-        settings = SettingsManager.load_settings()
+        settings = settings_manager.load_settings()
         staff_role_id = settings.get(ctx.guild.id, {}).get("staff_role")
         if not staff_role_id:
             return False
@@ -13,7 +12,7 @@ def is_staff():
 
 def is_mod():
     async def predicate(ctx):
-        settings = SettingsManager.load_settings()
+        settings = settings_manager.load_settings()
         mod_role_id = settings.get(ctx.guild.id, {}).get("mod_role")
         if not mod_role_id:
             return False
@@ -27,7 +26,7 @@ def is_admin():
     return commands.check(predicate)
 
 def is_staff_check(ctx):
-    settings = SettingsManager.load_settings()
+    settings = settings_manager.load_settings()
     staff_role_id = settings.get(ctx.guild.id, {}).get("staff_role")
     if not staff_role_id:
         return False

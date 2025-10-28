@@ -2,7 +2,8 @@ import discord
 import random
 import string
 from utils import settings_manager, ticket_stats
-from utils.checks import get_staff_roles # Para checar permissão nos botões
+# REMOVIDA: from utils.checks import get_staff_roles
+import asyncio # Precisamos do asyncio para o sleep
 
 # --- View de Gerenciamento (Botões dentro do ticket) ---
 class TicketManageView(discord.ui.View):
@@ -10,17 +11,17 @@ class TicketManageView(discord.ui.View):
         super().__init__(timeout=None) # Botões persistentes
 
     async def _check_perms(self, interaction: discord.Interaction):
-        # Verifica se o usuário é Dono, Admin do Discord ou tem Cargo Staff
         user = interaction.user
         if user == interaction.guild.owner or user.guild_permissions.administrator:
             return True
         
-        staff_roles = get_staff_roles(interaction.guild.id)
-        if not staff_roles:
+        # --- CORREÇÃO: Busca os cargos do settings_manager ---
+        staff_roles_ids = settings_manager.get_setting(interaction.guild.id, 'staff_roles') or []
+        if not staff_roles_ids:
             await interaction.response.send_message("Os cargos de Staff não estão configurados.", ephemeral=True)
             return False
 
-        for role_id in staff_roles:
+        for role_id in staff_roles_ids:
             if discord.utils.get(user.roles, id=role_id):
                 return True
         
@@ -35,7 +36,6 @@ class TicketManageView(discord.ui.View):
         await interaction.response.send_message("Ticket marcado como concluído. Fechando em 5 segundos...", ephemeral=True)
         ticket_stats.add_stat(interaction.guild.id, interaction.user.id, 'resolvidos')
         
-        # Aqui você pode adicionar lógica de transcript, se desejar
         await asyncio.sleep(5)
         await interaction.channel.delete(reason="Ticket Concluído")
 
@@ -44,15 +44,19 @@ class TicketManageView(discord.ui.View):
         if not await self._check_perms(interaction):
             return
 
-        # Pega o usuário que abriu o ticket (pelo nome do canal)
-        user_id_str = interaction.channel.name.split('-')[-1]
-        member = interaction.guild.get_member(int(user_id_str))
+        try:
+            # Pega o usuário que abriu o ticket (pelo ID no nome do canal)
+            user_id_str = interaction.channel.name.split('-')[-1]
+            member = interaction.guild.get_member(int(user_id_str))
+        except:
+            await interaction.response.send_message("Erro: Não foi possível identificar o ID do usuário no nome deste canal.", ephemeral=True)
+            return
 
         if member:
             await interaction.channel.set_permissions(member, send_messages=False)
             await interaction.response.send_message(f"🔒 Ticket bloqueado por {interaction.user.mention}. O usuário não pode mais enviar mensagens.", ephemeral=False)
         else:
-            await interaction.response.send_message("Não foi possível encontrar o usuário do ticket.", ephemeral=True)
+            await interaction.response.send_message("Não foi possível encontrar o usuário do ticket no servidor.", ephemeral=True)
 
     @discord.ui.button(label="Deletar", style=discord.ButtonStyle.danger, emoji="🗑️", custom_id="ticket_deletar")
     async def deletar(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -69,24 +73,28 @@ class TicketManageView(discord.ui.View):
 class TicketOpenView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None) # View persistente
-        self.add_item(TicketCategorySelect()) # Adiciona o menu
+        self.add_item(TicketCategorySelect())
 
 class TicketCategorySelect(discord.ui.Select):
     def __init__(self):
-        # As opções são carregadas dinamicamente
         super().__init__(custom_id="ticket_open_select", placeholder="Clique aqui para abrir um ticket...", min_values=1, max_values=1)
-        self._load_options()
-
-    def _load_options(self):
-        # Esta é uma gambiarra, pois não temos acesso fácil
-        # ao settings_manager de forma dinâmica aqui.
-        # As opções serão (re)carregadas quando o comando setup for usado.
-        # No setup, vamos popular isso.
         
-        # Placeholder
-        self.options = [discord.SelectOption(label="Configuração Pendente", value="none", description="Peça a um admin para usar r!ticketsetup")]
+    async def _load_options(self, guild_id):
+        # Esta função agora carrega as opções do settings_manager
+        categorias = settings_manager.get_setting(guild_id, 'ticket_categories')
+        
+        if not categorias:
+            self.options = [discord.SelectOption(label="Configuração Pendente", value="none", description="Peça a um admin para usar r!ticketsetup")]
+        else:
+            self.options = [
+                discord.SelectOption(label=cat.capitalize(), value=cat.lower(), emoji="🎟️")
+                for cat in categorias
+            ]
 
     async def callback(self, interaction: discord.Interaction):
+        # Carrega as opções específicas deste servidor ANTES de qualquer coisa
+        await self._load_options(interaction.guild.id)
+
         await interaction.response.defer(ephemeral=True) # "Pensando..."
         
         categoria_selecionada = self.values[0]
@@ -97,24 +105,20 @@ class TicketCategorySelect(discord.ui.Select):
         # Gera nome do ticket
         rand_str = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
         user = interaction.user
+        # O nome do canal agora inclui o ID do usuário no final para fácil recuperação
         channel_name = f"ticket-{categoria_selecionada}-{rand_str}-{user.id}"
 
-        # Pega a categoria de tickets
-        category_id = settings_manager.get_setting(interaction.guild.id, 'ticket_main_category')
+        # Pega a categoria de tickets (Corrigido para 'ticket_category' como em admin.py)
+        category_id = settings_manager.get_setting(interaction.guild.id, 'ticket_category')
         category = interaction.guild.get_channel(category_id)
         
         if not category or not isinstance(category, discord.CategoryChannel):
-            # Tenta criar a categoria se não existir
-            try:
-                category = await interaction.guild.create_category("Tickets")
-                settings_manager.set_setting(interaction.guild.id, 'ticket_main_category', category.id)
-            except discord.Forbidden:
-                await interaction.followup.send("Erro: Não tenho permissão para criar a categoria 'Tickets'.", ephemeral=True)
-                return
+            await interaction.followup.send("Erro: A categoria principal para criar tickets não foi configurada. Use `r!setticketcategory`.", ephemeral=True)
+            return
 
         # Pega cargos de staff
-        staff_roles = get_staff_roles(interaction.guild.id)
-        staff_objects = [interaction.guild.get_role(role_id) for role_id in staff_roles if interaction.guild.get_role(role_id)]
+        staff_roles_ids = settings_manager.get_setting(interaction.guild.id, 'staff_roles') or []
+        staff_objects = [interaction.guild.get_role(role_id) for role_id in staff_roles_ids if interaction.guild.get_role(role_id)]
 
         # Permissões do novo canal
         overwrites = {
@@ -122,7 +126,6 @@ class TicketCategorySelect(discord.ui.Select):
             user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
             interaction.guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
         }
-        # Adiciona permissão para os cargos de staff
         for role in staff_objects:
             overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
 
@@ -146,8 +149,6 @@ class TicketCategorySelect(discord.ui.Select):
         )
         embed.set_footer(text="Use os botões abaixo para gerenciar o ticket (Apenas Staff).")
         
+        # Envia a View de Gerenciamento (Concluir, Bloquear, Deletar)
         await new_channel.send(content=user.mention, embed=embed, view=TicketManageView())
         await interaction.followup.send(f"✅ Ticket criado com sucesso! Acesse: {new_channel.mention}", ephemeral=True)
-
-# Precisamos do asyncio para o sleep
-import asyncio

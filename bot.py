@@ -3,9 +3,13 @@ from discord.ext import commands
 import os
 import asyncio
 
+# --- ADICIONADO: Importa as Views do sistema de tickets ---
+from comandos.ticket_system import TicketOpenView, TicketManageView
+# --------------------------------------------------------
+
 # Configurações do bot
-TOKEN=seu_token_aqui
-PREFIX=r!
+TOKEN = "MTQzMjQ4MTYwMTgwMzI1NTk3MA.G9REsX.vzdpDUt_VzseNW1uEUUZONwPwZ5nfDSEpAx0gY"
+PREFIX = "r!"
 
 # Intents necessários
 intents = discord.Intents.default()
@@ -50,7 +54,7 @@ async def on_message(message):
 # Carregar comandos da pasta comandos
 async def load_commands():
     for filename in os.listdir('./comandos'):
-        if filename.endswith('.py') and not filename.startswith('__'):
+        if filename.endswith('.py') and not filename.startswith('__') and filename != 'ticket_system.py':
             try:
                 await bot.load_extension(f'comandos.{filename[:-3]}')
                 print(f'Comando {filename} carregado com sucesso!')
@@ -59,6 +63,13 @@ async def load_commands():
 
 # Função principal
 async def main():
+    
+    # --- ADICIONADO: Registra as Views persistentes ANTES do bot iniciar ---
+    # Isso dá "memória" aos menus e botões de ticket
+    bot.add_view(TicketOpenView())
+    bot.add_view(TicketManageView())
+    # --------------------------------------------------------------------
+
     async with bot:
         await load_commands()
         await bot.start(TOKEN)
