@@ -1,8 +1,8 @@
 import discord
 from discord.ext import commands
-from utils import settings_manager
-from utils.checks import is_admin
-from comandos.ticket_system import TicketOpenView # Importa nossa View
+from utils import settings_manager  # Corrigido: SEM '..'
+from utils.checks import is_admin      # Corrigido: SEM '..'
+from .ticket_system import TicketOpenView  # O '.' aqui está correto
 
 class TicketSetup(commands.Cog):
     def __init__(self, bot):
@@ -12,10 +12,28 @@ class TicketSetup(commands.Cog):
     @is_admin()
     async def ticketsetup(self, ctx, canal: discord.TextChannel, *categorias: str):
         
+        # --- CORREÇÃO: Mensagem de erro em Embed ---
         if not categorias:
-            # --- CORREÇÃO: Sugere o uso de aspas para categorias compostas ---
-            await ctx.send(f"Uso incorreto. Ex: `{ctx.prefix}ticketsetup #tickets Suporte \"Ajuda com Pagamento\" Denúncia`")
+            embed = discord.Embed(
+                title="❌ Uso Incorreto!",
+                description=f"Você precisa fornecer um canal e pelo menos uma categoria.\nUso: `{ctx.prefix}ticketsetup <#canal> <categoria1> [categoria2] ...`",
+                color=discord.Color.red()
+            )
+            embed.add_field(
+                name="Situação 1: Categorias com uma palavra",
+                value=f"Basta digitar os nomes separados por espaço.\n"
+                      f"`{ctx.prefix}ticketsetup #{canal.name} Suporte Denúncia Dúvida`",
+                inline=False
+            )
+            embed.add_field(
+                name="Situação 2: Categorias com várias palavras",
+                value=f"Use aspas (\"\") ao redor do nome com espaços.\n"
+                      f"`{ctx.prefix}ticketsetup #{canal.name} \"Fale conosco\" \"Ajuda com Pagamento\"`",
+                inline=False
+            )
+            await ctx.send(embed=embed)
             return
+        # --- FIM DA CORREÇÃO ---
         
         if len(categorias) > 4:
             await ctx.send("Você pode definir no máximo 4 categorias.")
@@ -35,14 +53,9 @@ class TicketSetup(commands.Cog):
         settings_manager.set_setting(ctx.guild.id, 'ticket_categories', list(categorias))
         
         # Cria a View de Abertura
-        # Graças às nossas mudanças no Passo 2, ela já vai carregar as opções corretas
-        # quando for registrada no 'bot.py'
         view = TicketOpenView()
         
         # --- MUDANÇA: ATUALIZAR AS OPÇÕES DO MENU INSTANTANEAMENTE ---
-        # Embora o bot vá se lembrar das opções no restart, precisamos 
-        # que este menu *novo* que estamos enviando já tenha as opções certas.
-        
         # Pega o item Select (que é o primeiro item da view)
         select_menu = view.children[0] 
         

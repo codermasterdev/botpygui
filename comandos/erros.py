@@ -21,7 +21,16 @@ COMMAND_EXAMPLES = {
     "setadminrole": "r!setadminrole @Admins",
     "setmodrole": "r!setmodrole @Moderadores",
     "setstaffrole": "r!setstaffrole @Equipe Support",
-    "ticketsetup": "r!ticketsetup #abrir-ticket Suporte Denúncia Dúvida"
+    "ticketsetup": "r!ticketsetup #abrir-ticket Suporte Denúncia Dúvida",
+    "setuprecrutamento": "r!setuprecrutamento #logs-forms #canal-forms \"Descrição do formulário aqui\"",
+    
+    # --- NOVOS EXEMPLOS DE VENDAS ---
+    "setupvendas": "r!setupvendas #loja",
+    "adicionarproduto": "r!adicionarproduto \"Meu Produto Incrível\" 19,99",
+    "addpagamento": "r!addpagamento PIX \"Chave aleatória: xyz...\"",
+    "removerproduto": "r!removerproduto \"Nome Exato Do Produto\"",
+    "removerpagamento": "r!removerpagamento PIX"
+    # --------------------------------
 }
 
 class ErrorHandler(commands.Cog):

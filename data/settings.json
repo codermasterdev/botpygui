@@ -4,11 +4,12 @@
         "suggestions_channel": 1343668957718253600,
         "autorole": null,
         "ticket_categories": [
-            "categoria",
-            "1",
-            "categoria",
-            "2"
+            "categoria 1",
+            "categgoria 2"
         ],
-        "ticket_main_category": 1432729148039626843
+        "ticket_main_category": 1432729148039626843,
+        "recrutamento_logs_channel": 1343668957718253600,
+        "recrutamento_setup_channel": 1343668957718253600,
+        "ponto_channel_id": 1343668957718253600
     }
 }
