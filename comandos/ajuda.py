@@ -1,12 +1,14 @@
 import discord
 from discord.ext import commands
-from utils.checks import is_admin, is_mod
+# Importa as novas funções de verificação
+from utils.checks import check_admin, check_mod, check_staff
 
 class AjudaView(discord.ui.View):
     def __init__(self, bot, author):
         super().__init__(timeout=120.0)
         self.bot = bot
         self.author = author
+        # Adiciona o Select atualizado
         self.add_item(AjudaCategoriaSelect(bot, author))
 
     async def on_timeout(self):
@@ -18,7 +20,6 @@ class AjudaView(discord.ui.View):
             pass
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        # Garante que apenas o autor do comando possa interagir
         if interaction.user.id != self.author.id:
             await interaction.response.send_message("Este menu não é para você!", ephemeral=True)
             return False
@@ -29,30 +30,39 @@ class AjudaCategoriaSelect(discord.ui.Select):
         self.bot = bot
         self.author = author
         
-        # Cria as opções do menu
+        # --- OPÇÕES ATUALIZADAS ---
         opcoes = [
             discord.SelectOption(label="Início", description="Voltar para a visão geral.", emoji="🏠"),
-            # Adicionamos categorias manualmente para ter controle
-            discord.SelectOption(label="Administração", description="Comandos de configuração.", emoji="⚙️"),
-            discord.SelectOption(label="Moderação", description="Comandos para moderar o chat.", emoji="🔨"),
+            discord.SelectOption(label="Administração", description="Comandos de configuração do bot.", emoji="⚙️"),
+            discord.SelectOption(label="Moderação", description="Comandos para moderar o servidor.", emoji="🔨"),
             discord.SelectOption(label="Tickets", description="Comandos do sistema de ticket.", emoji="🎟️"),
+            discord.SelectOption(label="Bate-Ponto", description="Comandos do sistema de ponto.", emoji="🕒"),
+            discord.SelectOption(label="Recrutamento", description="Comandos do formulário de recrutamento.", emoji="📝"),
+            discord.SelectOption(label="Vendas", description="Comandos do sistema de loja.", emoji="🛒"),
+            discord.SelectOption(label="Ausência", description="Comandos para registrar ausência.", emoji="📅"),
             discord.SelectOption(label="Utilidades", description="Comandos úteis para membros.", emoji="🛠️"),
-            discord.SelectOption(label="Outros", description="Comandos gerais.", emoji="📦")
+            discord.SelectOption(label="Outros", description="Comandos gerais e de ajuda.", emoji="📦")
         ]
         
         super().__init__(placeholder="Escolha uma categoria...", min_values=1, max_values=1, options=opcoes)
 
     async def callback(self, interaction: discord.Interaction):
-        # Pega o valor selecionado (ex: "Administração")
         categoria_selecionada = self.values[0]
         
-        # Mapeia o valor para os Cogs reais
+        # --- MAPA DE COGS ATUALIZADO ---
         cog_map = {
-            "Administração": ["Admin", "Permissoes", "AutoRole"],
+            "Administração": [
+                "Admin", "Permissoes", "AutoRole", "TicketSetup", 
+                "SetupBatePonto", "SetupRecrutamento", "SetupVendasCog", "SetupAusencia"
+            ],
             "Moderação": ["Moderacao", "Kick", "Unban", "Limpar"],
-            "Tickets": ["TicketSetup", "TicketRanking"], # Nomes dos novos cogs de ticket
+            "Tickets": ["TicketRanking"], 
+            "Bate-Ponto": ["BatePontoCog"],
+            "Recrutamento": [], 
+            "Vendas": [], 
+            "Ausência": ["Ausencia"],
             "Utilidades": ["Utilidades", "InfoUsuario", "ServerInfo", "Avatar", "Enquete"],
-            "Outros": ["Ping", "Recarregar", "Ajuda"]
+            "Outros": ["Ping", "Recarregar", "Ajuda", "PrimeirosPassos", "Creditos"]
         }
         
         if categoria_selecionada == "Início":
@@ -60,29 +70,26 @@ class AjudaCategoriaSelect(discord.ui.Select):
             await interaction.response.edit_message(embed=embed)
             return
 
-        # Filtra os Cogs baseado na seleção
         cogs_para_mostrar = cog_map.get(categoria_selecionada)
-        if not cogs_para_mostrar:
+        if cogs_para_mostrar is None:
             await interaction.response.send_message("Categoria não encontrada.", ephemeral=True)
             return
 
         embed = discord.Embed(title=f"Categoria: {categoria_selecionada}", color=discord.Color.blue())
         prefix = await self.bot.get_prefix(interaction.message)
-        prefix = prefix if isinstance(prefix, str) else prefix[0] # Lida com listas de prefixo
+        prefix = prefix if isinstance(prefix, str) else prefix[0] 
 
-        # Verifica as permissões do autor
+        # --- VERIFICAÇÃO DE PERMISSÃO CORRIGIDA ---
         ctx_mock = await self.bot.get_context(interaction.message)
-        ctx_mock.author = self.author
+        ctx_mock.author = interaction.user
         
-        try:
-            is_admin_check = await is_admin().predicate(ctx_mock)
-        except commands.CheckFailure:
-            is_admin_check = False
+        # Lógica para categorias que não têm cogs, mas sim descrições
+        if categoria_selecionada == "Recrutamento":
+            embed.description = "Este sistema funciona por botões.\nUse `r!setuprecrutamento` (Admin) para criar o painel."
+        elif categoria_selecionada == "Vendas":
+            embed.description = "Este sistema funciona por botões.\nUse `r!setupvendas` (Admin) para criar o painel da loja."
             
-        try:
-            is_mod_check = await is_mod().predicate(ctx_mock)
-        except commands.CheckFailure:
-            is_mod_check = False
+        comandos_na_categoria = 0
 
         for cog_name in cogs_para_mostrar:
             cog = self.bot.get_cog(cog_name)
@@ -94,24 +101,24 @@ class AjudaCategoriaSelect(discord.ui.Select):
                 if cmd.hidden:
                     continue
                 
-                # Checagem de Permissão
-                if cog_name in cog_map["Administração"] and not is_admin_check:
-                    continue
-                if cog_name in cog_map["Moderação"] and not is_mod_check:
-                    continue
+                try:
+                    # Simula a checagem de permissão do comando
+                    await cmd.can_run(ctx_mock)
+                except commands.CheckFailure:
+                    continue # Usuário não pode ver este comando, pula
                 
-                # Checagem de Dono (para r!recarregar)
                 is_owner_command = any(check.__qualname__ == 'is_owner.<locals>.predicate' for check in cmd.checks)
                 if is_owner_command and not await self.bot.is_owner(self.author):
                     continue
 
                 help_text = cmd.help or "Sem descrição."
                 comandos_visiveis.append(f"`{prefix}{cmd.name}` - {help_text}")
+                comandos_na_categoria += 1
             
             if comandos_visiveis:
                 embed.add_field(name=f"Comandos de {cog_name}", value="\n".join(comandos_visiveis), inline=False)
         
-        if not embed.fields:
+        if comandos_na_categoria == 0 and not embed.description:
             embed.description = "Você não tem permissão para ver ou não há comandos nesta categoria."
 
         await interaction.response.edit_message(embed=embed)
@@ -134,7 +141,7 @@ class Ajuda(commands.Cog):
     @commands.command(name='ajuda', help='Mostra o painel de ajuda interativo.')
     async def ajuda(self, ctx):
         view = AjudaView(self.bot, ctx.author)
-        embed = view.children[0].get_initial_embed(self.bot.user) # Pega o embed inicial do Select
+        embed = view.children[0].get_initial_embed(self.bot.user) 
         view.message = await ctx.send(embed=embed, view=view)
 
 async def setup(bot):

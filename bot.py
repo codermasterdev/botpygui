@@ -56,25 +56,36 @@ async def on_ready():
 
     # Definir status/atividade
     await bot.change_presence(
-        activity=discord.Game(name="Em desenvolvimento"),
+        activity=discord.Game(name="Tire suas dúvidas com r!ajuda"),
         status=discord.Status.online
     )
 
-# Evento de mensagens
+# --- ATUALIZADO: Evento de mensagens ---
 @bot.event
 async def on_message(message):
     # Ignorar mensagens do próprio bot
     if message.author == bot.user:
         return
 
-    # NÃO ignorar mais em DM, pois o questionário precisa
-    # (O bot.wait_for cuidará de ler a DM correta)
+    # (O bot.wait_for cuidará de ler a DM correta para recrutamento/ausencia)
 
-    # Responder quando mencionado (apenas em guilds)
-    if not isinstance(message.channel, discord.DMChannel) and bot.user in message.mentions:
-        await message.channel.send(f'{message.author.mention} Em que posso te ajudar?')
+    # --- ATUALIZADO: Responder quando mencionado (apenas em guilds) ---
+    if not isinstance(message.channel, discord.DMChannel):
+        # Verifica se a mensagem é *apenas* uma menção ao bot
+        # (Compara o conteúdo limpo com as duas formas de menção)
+        bot_mention_id = f'<@{bot.user.id}>'
+        bot_mention_nick = f'<@!{bot.user.id}>'
+        
+        if message.content.strip() == bot_mention_id or message.content.strip() == bot_mention_nick:
+            embed = discord.Embed(
+                description=f"Olá {message.author.mention}, tudo bem?\n\nSou o bot do **{message.guild.name}** e estou aqui para ajudar.\nSe tiver alguma dúvida, digite `{PREFIX}ajuda` para ver meus comandos!",
+                color=discord.Color.blue()
+            )
+            await message.channel.send(embed=embed)
+            return # Evita que a menção seja processada como um "Comando Não Encontrado"
 
     # Processar comandos (apenas em guilds)
+    # (Não processa DMs, pois os comandos interativos cuidam disso)
     if not isinstance(message.channel, discord.DMChannel):
         await bot.process_commands(message)
 
@@ -86,7 +97,7 @@ async def load_commands():
         'ticket_system.py', 
         'recrutamento_system.py', 
         'ponto_system.py',
-        'vendas_system.py' # <-- Adicionado
+        'vendas_system.py' 
     ]
     # -----------------------------------------------------
     

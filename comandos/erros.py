@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import math
 
-# Dicionário de exemplos para os comandos
+# Dicionário de exemplos para os comandos (mantido da sua versão anterior)
 COMMAND_EXAMPLES = {
     "ban": "r!ban @Usuario Mau comportamento",
     "mutar": "r!mutar @Usuario 30 Spam",
@@ -23,14 +23,12 @@ COMMAND_EXAMPLES = {
     "setstaffrole": "r!setstaffrole @Equipe Support",
     "ticketsetup": "r!ticketsetup #abrir-ticket Suporte Denúncia Dúvida",
     "setuprecrutamento": "r!setuprecrutamento #logs-forms #canal-forms \"Descrição do formulário aqui\"",
-    
-    # --- NOVOS EXEMPLOS DE VENDAS ---
     "setupvendas": "r!setupvendas #loja",
     "adicionarproduto": "r!adicionarproduto \"Meu Produto Incrível\" 19,99",
     "addpagamento": "r!addpagamento PIX \"Chave aleatória: xyz...\"",
     "removerproduto": "r!removerproduto \"Nome Exato Do Produto\"",
-    "removerpagamento": "r!removerpagamento PIX"
-    # --------------------------------
+    "removerpagamento": "r!removerpagamento PIX",
+    "ausencia": "r!ausencia" 
 }
 
 class ErrorHandler(commands.Cog):
@@ -40,16 +38,25 @@ class ErrorHandler(commands.Cog):
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         
-        # Ignora se o comando não existe
+        # --- ATUALIZADO: Responde a comando não encontrado ---
         if isinstance(error, commands.CommandNotFound):
-            print(f"Comando não encontrado: {ctx.message.content}")
+            embed = discord.Embed(
+                title="🤔 Comando Não Encontrado",
+                description=f"Olá {ctx.author.mention}, parece que você digitou um comando que por enquanto não existe.\n\nDigite `{ctx.prefix}ajuda` para ver todos os comandos disponíveis.",
+                color=discord.Color.blue()
+            )
+            # Deleta a mensagem de erro e o comando errado após 10 segundos
+            msg = await ctx.send(embed=embed, delete_after=10)
+            try:
+                await ctx.message.delete(delay=10)
+            except discord.Forbidden:
+                pass # Ignora se não puder deletar a msg do usuário
             return 
+        # ---------------------------------------------------
 
         # Erro de argumento faltando (ex: r!anuncio)
         if isinstance(error, commands.MissingRequiredArgument):
             
-            # --- CORREÇÃO AQUI ---
-            # Adicionamos {ctx.command.name} antes da assinatura
             uso_correto = f"`{ctx.prefix}{ctx.command.name} {ctx.command.signature}`"
             
             embed = discord.Embed(
@@ -68,14 +75,14 @@ class ErrorHandler(commands.Cog):
                         
             await ctx.send(embed=embed)
             
-        # Erro de permissão
-        elif isinstance(error, commands.MissingPermissions):
+        # Erro de permissão (Juntado CheckFailure)
+        elif isinstance(error, (commands.MissingPermissions, commands.CheckFailure)):
             embed = discord.Embed(
                 title="🚫 Sem Permissão",
                 description="Você não tem permissão para usar este comando.",
                 color=discord.Color.red()
             )
-            await ctx.send(embed=embed)
+            await ctx.send(embed=embed, delete_after=10)
 
         # Erro de Cooldown
         elif isinstance(error, commands.CommandOnCooldown):
@@ -89,8 +96,7 @@ class ErrorHandler(commands.Cog):
         
         # Erro de Avatar (que corrigimos antes)
         elif isinstance(error, commands.CommandInvokeError) and isinstance(error.original, AttributeError) and "'NoneType' object has no attribute 'url'" in str(error.original):
-            print("Erro de Avatar (NoneType) tratado. (Verifique comandos/utilidades.py)")
-            # Não envia msg, pois já foi corrigido
+            print("Erro de Avatar (NoneType) tratado.")
             pass
 
         # Erro genérico

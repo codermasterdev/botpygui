@@ -10,6 +10,16 @@
         "ticket_main_category": 1432729148039626843,
         "recrutamento_logs_channel": 1343668957718253600,
         "recrutamento_setup_channel": 1343668957718253600,
-        "ponto_channel_id": 1343668957718253600
+        "ponto_channel_id": 1343668957718253600,
+        "admin_roles": [
+            1433285264855535617
+        ],
+        "mod_roles": [
+            1433285264855535617
+        ],
+        "staff_roles": [
+            1433285264855535617
+        ],
+        "ausencia_channel_id": 1343668957718253600
     }
 }
