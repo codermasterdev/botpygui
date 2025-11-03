@@ -53,17 +53,18 @@ class AjudaCategoriaSelect(discord.ui.Select):
         cog_map = {
             "Administração": [
                 "Admin", "Permissoes", "AutoRole", "TicketSetup", 
-                "SetupBatePonto", "SetupRecrutamento", "SetupVendasCog", "SetupAusencia"
+                "SetupAusencia" # Cogs de setup específicos foram movidos
             ],
             "Moderação": ["Moderacao", "Kick", "Unban", "Limpar"],
             "Tickets": ["TicketRanking"], 
-            "Bate-Ponto": ["BatePontoCog"],
-            "Recrutamento": [], 
-            "Vendas": [], 
+            "Bate-Ponto": ["BatePontoCog", "SetupBatePonto"], # SetupBatePonto movido para cá
+            "Recrutamento": ["SetupRecrutamento"], # SetupRecrutamento movido para cá
+            "Vendas": ["SetupVendasCog"], # SetupVendasCog movido para cá (inclui addproduto, etc)
             "Ausência": ["Ausencia"],
             "Utilidades": ["Utilidades", "InfoUsuario", "ServerInfo", "Avatar", "Enquete"],
             "Outros": ["Ping", "Recarregar", "Ajuda", "PrimeirosPassos", "Creditos"]
         }
+        # --- FIM DA ATUALIZAÇÃO ---
         
         if categoria_selecionada == "Início":
             embed = self.get_initial_embed(interaction.client.user)
@@ -83,12 +84,9 @@ class AjudaCategoriaSelect(discord.ui.Select):
         ctx_mock = await self.bot.get_context(interaction.message)
         ctx_mock.author = interaction.user
         
-        # Lógica para categorias que não têm cogs, mas sim descrições
-        if categoria_selecionada == "Recrutamento":
-            embed.description = "Este sistema funciona por botões.\nUse `r!setuprecrutamento` (Admin) para criar o painel."
-        elif categoria_selecionada == "Vendas":
-            embed.description = "Este sistema funciona por botões.\nUse `r!setupvendas` (Admin) para criar o painel da loja."
-            
+        # --- REMOVIDO Bloco de descrição manual para Vendas/Recrutamento ---
+        # (Agora eles são lidos dinamicamente pelo loop abaixo)
+        
         comandos_na_categoria = 0
 
         for cog_name in cogs_para_mostrar:
@@ -116,7 +114,9 @@ class AjudaCategoriaSelect(discord.ui.Select):
                 comandos_na_categoria += 1
             
             if comandos_visiveis:
-                embed.add_field(name=f"Comandos de {cog_name}", value="\n".join(comandos_visiveis), inline=False)
+                # Adiciona o nome do Cog (ex: SetupVendasCog) se houver mais de um cog na lista
+                nome_campo = f"Comandos de {cog_name}" if len(cogs_para_mostrar) > 1 else f"Comandos de {categoria_selecionada}"
+                embed.add_field(name=nome_campo, value="\n".join(comandos_visiveis), inline=False)
         
         if comandos_na_categoria == 0 and not embed.description:
             embed.description = "Você não tem permissão para ver ou não há comandos nesta categoria."

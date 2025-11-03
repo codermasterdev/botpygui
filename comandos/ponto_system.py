@@ -29,10 +29,6 @@ class PontoControlView(discord.ui.View):
             bot = source.bot
             guild = source.guild
             responder = source.send # Comandos usam send direto
-            # Podemos deletar a mensagem do comando depois
-            try:
-                 await source.message.delete(delay=5)
-            except: pass
 
 
         if user.id in bot.active_pontos:
@@ -66,9 +62,6 @@ class PontoControlView(discord.ui.View):
             bot = source.bot
             guild = source.guild
             responder = source.send
-            try:
-                 await source.message.delete(delay=5)
-            except: pass
 
         if user.id not in bot.active_pontos:
             await responder("⚠️ Você não está com o ponto iniciado.", ephemeral=True)
@@ -94,12 +87,19 @@ class PontoControlView(discord.ui.View):
 
         total_seconds, weekly_seconds = ponto_manager.get_user_times(guild.id, user.id)
 
+        # --- INÍCIO DA CORREÇÃO (Formatação da Mensagem) ---
+        session_time_formatted = ponto_manager.format_seconds(int(seconds_added))
+        total_time_formatted = ponto_manager.format_seconds(total_seconds)
+        weekly_time_formatted = ponto_manager.format_seconds(weekly_seconds)
+
         await responder(
             f"✅ Ponto finalizado!\n"
-            f"⏱️ Tempo total registrado: **{ponto_manager.format_seconds(total_seconds)}**\n"
-            f"📅 Tempo nesta semana: **{ponto_manager.format_seconds(weekly_seconds)}**",
+            f"**🕑 Tempo nesta sessão:** **{session_time_formatted}**\n"
+            f"📅 Tempo nesta semana: **{weekly_time_formatted}**\n"
+            f"⏱️ Tempo total registrado: **{total_time_formatted}**",
             ephemeral=True
         )
+        # --- FIM DA CORREÇÃO ---
         print(f"Ponto finalizado para {user.name} ({user.id})")
 
 

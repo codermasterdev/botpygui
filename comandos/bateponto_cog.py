@@ -26,6 +26,9 @@ class BatePontoCog(commands.Cog):
 
         # CASO 2: Usuário SAIU de um canal de voz (indo para NENHUM canal)
         elif before.channel is not None and after.channel is None:
+            
+            # --- INÍCIO DA CORREÇÃO (Define seconds_added) ---
+            seconds_added = 0 
             if ponto_state.last_vc_join_time: # Só calcula se ele estava sendo contado
                  try:
                      duration = now - ponto_state.last_vc_join_time
@@ -34,7 +37,35 @@ class BatePontoCog(commands.Cog):
                      print(f"{member.name} saiu de VC ({before.channel.name}), adicionado {seconds_added:.2f}s.")
                  except Exception as e:
                      print(f"Erro ao calcular tempo de {member.name} ao sair de VC: {e}")
-            ponto_state.last_vc_join_time = None # Para de contar até ele entrar em outro
+            
+            # Remove o usuário do estado ativo (finaliza o ponto)
+            try:
+                del self.bot.active_pontos[member.id]
+                print(f"Ponto finalizado automaticamente para {member.name} por desconectar.")
+
+                # Tenta enviar uma DM de confirmação
+                total_seconds, weekly_seconds = ponto_manager.get_user_times(guild_id, member.id)
+
+                # --- CORREÇÃO (Formato da Mensagem) ---
+                session_time_formatted = ponto_manager.format_seconds(int(seconds_added))
+                total_time_formatted = ponto_manager.format_seconds(total_seconds)
+                weekly_time_formatted = ponto_manager.format_seconds(weekly_seconds)
+
+                await member.send(
+                    f"✅ Ponto finalizado automaticamente por desconectar do canal de voz.\n"
+                    f"**🕑 Tempo nesta sessão:** **{session_time_formatted}**\n"
+                    f"📅 Tempo nesta semana: **{weekly_time_formatted}**\n"
+                    f"⏱️ Tempo total registrado: **{total_time_formatted}**"
+                )
+                # --- FIM DA CORREÇÃO ---
+
+            except discord.Forbidden:
+                 print(f"Não foi possível enviar DM de finalização de ponto para {member.name} (DM fechada).")
+            except KeyError:
+                 print(f"Erro ao tentar deletar {member.id} de active_pontos (já deletado).")
+            except Exception as e:
+                 print(f"Erro ao finalizar ponto automatico para {member.name}: {e}")
+            # --- FIM DA CORREÇÃO ---
 
         # CASO 3: Usuário MUDOU de canal de voz
         elif before.channel is not None and after.channel is not None and before.channel != after.channel:

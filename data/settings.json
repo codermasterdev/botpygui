@@ -2,7 +2,7 @@
     "1343668957097365598": {
         "log_channel": 1343668957718253600,
         "suggestions_channel": 1343668957718253600,
-        "autorole": null,
+        "autorole": 1433285264855535617,
         "ticket_categories": [
             "categoria 1",
             "categgoria 2"
@@ -20,6 +20,11 @@
         "staff_roles": [
             1433285264855535617
         ],
-        "ausencia_channel_id": 1343668957718253600
+        "ausencia_channel_id": 1343668957718253600,
+        "vendas_setup_channel": 1343668957718253600,
+        "vendas_category_id": 1433631922285707385,
+        "vendas_setup_message_id": 1433632038421921915,
+        "welcome_channel": 1343668957718253600,
+        "goodbye_channel": 1343668957718253600
     }
 }
